@@ -1,0 +1,28 @@
+{
+  "name": "quantum-secure-messenger",
+  "version": "2.0.0",
+  "description": "Quantum Secure Messenger with Qiskit Aer",
+  "scripts": {
+    "start": "python -m uvicorn server.main:app --reload --port 3000",
+    "dev": "python -m uvicorn server.main:app --reload --port 3000"
+  },
+  "dependencies": {
+    "fastapi": "^0.109.0",
+    "uvicorn": "^0.27.0",
+    "python-multipart": "^0.0.6",
+    "passlib": "[^1.7.4",
+    "bcrypt": "^4.1.2",
+    "python-jose": "^3.3.0",
+    "pydantic": "^2.5.3",
+    "qiskit": "^1.0.0",
+    "qiskit-aer": "^0.14.0",
+    "numpy": "^1.26.3",
+    "websockets": "^12.0"
+  }
+}
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "uuid": "^9.0.1",
+    "cors": "^2.8.5"
+  }
+}

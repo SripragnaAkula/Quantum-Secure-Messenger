@@ -1,0 +1,415 @@
+/* Quantum Secure Messenger - Custom Styles */
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #161B22;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #21262D;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #30363D;
+}
+
+/* Message Bubbles */
+.message {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    position: relative;
+    animation: messageIn 0.2s ease-out;
+}
+
+@keyframes messageIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-sent {
+    background: linear-gradient(135deg, #1F6FEB 0%, #388BFD 100%);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+.message-received {
+    background: #21262D;
+    color: white;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+.message-time {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.message-status {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 6px;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: #21262D;
+    border-radius: 18px;
+    width: fit-content;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: #8B949E;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Conversation Item */
+.conversation-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.conversation-item:hover {
+    background: #21262D;
+}
+
+.conversation-item.active {
+    background: #21262D;
+    border-left-color: #58A6FF;
+}
+
+.conversation-item .unread-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: #58A6FF;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Quantum Key Animation */
+@keyframes quantumPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(163, 113, 247, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(163, 113, 247, 0.6);
+    }
+}
+
+.quantum-key-active {
+    animation: quantumPulse 2s ease-in-out infinite;
+}
+
+/* Toast Notifications */
+.toast {
+    padding: 12px 16px;
+    background: #161B22;
+    border-radius: 8px;
+    border-left: 4px solid #58A6FF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    animation: toastIn 0.3s ease-out;
+    min-width: 280px;
+    max-width: 360px;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.toast-success {
+    border-left-color: #3FB950;
+}
+
+.toast-error {
+    border-left-color: #F85149;
+}
+
+.toast-warning {
+    border-left-color: #D29922;
+}
+
+/* Connection Status */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.connection-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.connection-status.connected .dot {
+    background: #3FB950;
+}
+
+.connection-status.connecting .dot {
+    background: #D29922;
+    animation: pulse 1s infinite;
+}
+
+.connection-status.disconnected .dot {
+    background: #F85149;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Input Focus Effects */
+#message-input:focus {
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+/* Button Hover Effects */
+#send-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.4);
+}
+
+#send-button:active {
+    transform: scale(0.95);
+}
+
+/* Quantum Panel Toggle */
+#quantum-panel {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#quantum-panel.hidden {
+    transform: translateX(100%);
+    opacity: 0;
+    width: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Security Alert Animation */
+@keyframes alertPulse {
+    0%, 100% {
+        border-color: rgba(248, 81, 73, 0.3);
+    }
+    50% {
+        border-color: rgba(248, 81, 73, 0.8);
+    }
+}
+
+#security-alert {
+    animation: alertPulse 1s ease-in-out infinite;
+}
+
+/* Avatar Styles */
+.avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Online Status Dot */
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #161B22;
+}
+
+.status-dot.online {
+    background: #3FB950;
+}
+
+.status-dot.offline {
+    background: #6E7681;
+}
+
+.status-dot.away {
+    background: #D29922;
+}
+
+/* Message Encryption Indicator */
+.encrypted-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1023px) {
+    #quantum-panel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(100%);
+    }
+    
+    #quantum-panel.visible {
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 767px) {
+    aside:first-child {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+    }
+    
+    aside:first-child.visible {
+        transform: translateX(0);
+    }
+    
+    .message {
+        max-width: 85%;
+    }
+}
+
+/* Loading Spinner */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #21262D;
+    border-top-color: #58A6FF;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Key Refresh Animation */
+@keyframes keyRefresh {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.key-refreshing .quantum-icon {
+    animation: keyRefresh 1s linear infinite;
+}
+
+/* Background Pattern */
+.bg-pattern {
+    background-image: 
+        radial-gradient(circle at 25% 25%, rgba(88, 166, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(163, 113, 247, 0.03) 0%, transparent 50%);
+}
+
+/* Glow Effects */
+.glow-blue {
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.3);
+}
+
+.glow-purple {
+    box-shadow: 0 0 20px rgba(163, 113, 247, 0.3);
+}
+
+/* Selection Color */
+::selection {
+    background: rgba(88, 166, 255, 0.3);
+    color: white;
+}
+
+/* Placeholder Styles */
+::placeholder {
+    color: #6E7681;
+    opacity: 1;
+}
+
+/* Focus Visible */
+:focus-visible {
+    outline: 2px solid #58A6FF;
+    outline-offset: 2px;
+}
+
+/* Hide on initial load */
+.hidden {
+    display: none !important;
+}
+
+/* Fade in animation */
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}

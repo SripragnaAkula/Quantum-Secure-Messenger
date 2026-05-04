@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Secure Messenger</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        quantum: '#A371F7',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0f172a; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(163, 113, 247, 0.3); } 50% { box-shadow: 0 0 40px rgba(163, 113, 247, 0.6); } }
+        .quantum-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast { animation: slide-in 0.3s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ==================== API ====================
+        const API_BASE = 'http://127.0.0.1:3000/api';
+
+        async function register(username, password) {
+            const res = await fetch(`${API_BASE}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            return res.json();
+        }
+
+        async function login(username, password) {
+            const res = await fetch(`${API_BASE}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            return res.json();
+        }
+
+        async function searchUsers(query) {
+            const res = await fetch(`${API_BASE}/users?query=${query}`);
+            return res.json();
+        }
+
+        async function getFriends(username) {
+            const res = await fetch(`${API_BASE}/friends?username=${username}`);
+            return res.json();
+        }
+
+        async function getFriendRequests(username) {
+            const res = await fetch(`${API_BASE}/friend/requests?username=${username}`);
+            return res.json();
+        }
+
+        async function sendFriendRequest(fromUser, toUsername) {
+            const res = await fetch(`${API_BASE}/friend/request?from_user=${encodeURIComponent(fromUser)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to_username: toUsername })
+            });
+            return res.json();
+        }
+
+        async function acceptFriendRequest(requestId, username) {
+            const res = await fetch(`${API_BASE}/friend/accept?request_id=${encodeURIComponent(requestId)}&username=${encodeURIComponent(username)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return res.json();
+        }
+
+        async function rejectFriendRequest(requestId, username) {
+            const res = await fetch(`${API_BASE}/friend/reject?request_id=${encodeURIComponent(requestId)}&username=${encodeURIComponent(username)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return res.json();
+        }
+
+        async function generateQuantumKey(user1, user2) {
+            const res = await fetch(`${API_BASE}/quantum/generate-key?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`, {
+                method: 'POST'
+            });
+            return res.json();
+        }
+
+        async function getQuantumKeyStatus(user1, user2) {
+            const res = await fetch(`${API_BASE}/quantum/key-status?user1=${user1}&user2=${user2}`);
+            return res.json();
+        }
+
+        async function getMessages(user1, user2) {
+            const res = await fetch(`${API_BASE}/messages?user1=${user1}&user2=${user2}`);
+            return res.json();
+        }
+
+        // ==================== COMPONENTS ====================
+
+        function Toast({ message, type, onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, []);
+
+            const colors = {
+                success: 'border-green-500',
+                error: 'border-red-500',
+                warning: 'border-yellow-500',
+                info: 'border-blue-500'
+            };
+
+            return (
+                <div className={`toast fixed top-4 right-4 p-4 bg-slate-800 rounded-lg border-l-4 ${colors[type]} shadow-lg z-50`}>
+                    <p className="text-sm text-gray-200">{message}</p>
+                </div>
+            );
+        }
+
+        function AuthPage({ onLogin }) {
+            const [isLogin, setIsLogin] = useState(true);
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    let result;
+                    if (isLogin) {
+                        result = await login(username, password);
+                    } else {
+                        result = await register(username, password);
+                    }
+
+                    if (result.id || result.username) {
+                        onLogin(username);
+                    } else {
+                        setError(result.detail || 'Authentication failed');
+                    }
+                } catch (err) {
+                    setError('Connection error. Is the server running?');
+                }
+
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-900">
+                    <div className="w-full max-w-md p-8">
+                        <div className="text-center mb-8">
+                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-500/20 mb-4">
+                                <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                            </div>
+                            <h1 className="text-3xl font-bold text-white mb-2">Quantum Secure</h1>
+                            <p className="text-gray-400">End-to-end encrypted messaging</p>
+                        </div>
+
+                        <div className="flex mb-6">
+                            <button
+                                onClick={() => setIsLogin(true)}
+                                className={`flex-1 py-2 text-center rounded-lg ${isLogin ? 'bg-blue-500 text-white' : 'bg-slate-800 text-gray-400'}`}
+                            >
+                                Sign In
+                            </button>
+                            <button
+                                onClick={() => setIsLogin(false)}
+                                className={`flex-1 py-2 text-center rounded-lg ${!isLogin ? 'bg-blue-500 text-white' : 'bg-slate-800 text-gray-400'}`}
+                            >
+                                Register
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder="Username"
+                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Password"
+                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                                    required
+                                />
+                            </div>
+                            {error && <p className="text-red-400 text-sm">{error}</p>}
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [view, setView] = useState('chat');
+            const [friends, setFriends] = useState([]);
+            const [friendRequests, setFriendRequests] = useState([]);
+            const [searchResults, setSearchResults] = useState([]);
+            const [selectedChat, setSelectedChat] = useState(null);
+            const [messages, setMessages] = useState([]);
+            const [messageInput, setMessageInput] = useState('');
+            const [ws, setWs] = useState(null);
+            const [connectionStatus, setConnectionStatus] = useState('disconnected');
+            const [reconnectAttempts, setReconnectAttempts] = useState(0);
+            const [quantumKey, setQuantumKey] = useState(null);
+            const [toasts, setToasts] = useState([]);
+            const [showSearch, setShowSearch] = useState(false);
+            const [searchQuery, setSearchQuery] = useState('');
+            const wsRef = useRef(null);
+            const reconnectTimeoutRef = useRef(null);
+            const pingIntervalRef = useRef(null);
+
+            const addToast = (message, type = 'info') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, message, type }]);
+            };
+
+            const removeToast = (id) => {
+                setToasts(prev => prev.filter(t => t.id !== id));
+            };
+
+            const connectWebSocket = () => {
+                if (!currentUser) return;
+
+                setConnectionStatus('connecting');
+
+                const websocket = new WebSocket(`ws://localhost:3000/ws/${currentUser}`);
+                wsRef.current = websocket;
+
+                websocket.onopen = () => {
+                    console.log('WebSocket connected');
+                    setConnectionStatus('connected');
+                    setReconnectAttempts(0);
+                    addToast('Connected to server', 'success');
+
+                    pingIntervalRef.current = setInterval(() => {
+                        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                            wsRef.current.send(JSON.stringify({ type: 'ping' }));
+                        }
+                    }, 30000);
+
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({
+                            type: 'user_online',
+                            username: currentUser
+                        }));
+
+                        wsRef.current.send(JSON.stringify({
+                            type: 'request_pending_messages'
+                        }));
+                    }
+                };
+
+                websocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Failed to parse WebSocket message:', error, event.data);
+                        addToast('Received invalid message from server', 'error');
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    setConnectionStatus('disconnected');
+                    addToast('Connection error', 'error');
+                };
+
+                websocket.onclose = (event) => {
+                    console.log('WebSocket disconnected:', event.code, event.reason);
+                    setConnectionStatus('disconnected');
+                    wsRef.current = null;
+
+                    if (event.code !== 1000 && reconnectAttempts < 5) {
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                        reconnectTimeoutRef.current = setTimeout(() => {
+                            setReconnectAttempts(prev => prev + 1);
+                            connectWebSocket();
+                        }, delay);
+                    } else if (reconnectAttempts >= 5) {
+                        addToast('Connection lost. Please refresh the page.', 'error');
+                    }
+                };
+
+                setWs(websocket);
+            };
+
+            const disconnectWebSocket = () => {
+                if (pingIntervalRef.current) {
+                    clearInterval(pingIntervalRef.current);
+                    pingIntervalRef.current = null;
+                }
+                if (reconnectTimeoutRef.current) {
+                    clearTimeout(reconnectTimeoutRef.current);
+                    reconnectTimeoutRef.current = null;
+                }
+                if (wsRef.current) {
+                    wsRef.current.close(1000, 'User logout');
+                    wsRef.current = null;
+                }
+                setConnectionStatus('disconnected');
+            };
+
+            useEffect(() => {
+                if (currentUser) {
+                    connectWebSocket();
+                } else {
+                    disconnectWebSocket();
+                }
+
+                return () => {
+                    disconnectWebSocket();
+                };
+            }, [currentUser]);
+
+            const handleWebSocketMessage = (data) => {
+                switch (data.type) {
+                    case 'new_message':
+                        const message = data.message;
+                        if (selectedChat === message.from || selectedChat === message.to) {
+                            setMessages(prev => {
+                                const exists = prev.some(m => m.id === message.id);
+                                if (!exists) {
+                                    return [...prev, message].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                                }
+                                return prev;
+                            });
+                        }
+                        addToast(`New message from ${message.from}`, 'info');
+                        loadFriends();
+                        break;
+
+                    case 'message_sent':
+                        console.log(`Message ${data.message_id} delivered: ${data.status}`);
+                        break;
+
+                    case 'user_online':
+                        setFriends(prev => prev.map(friend =>
+                            friend.username === data.username
+                                ? { ...friend, online: true }
+                                : friend
+                        ));
+                        break;
+
+                    case 'user_offline':
+                        setFriends(prev => prev.map(friend =>
+                            friend.username === data.username
+                                ? { ...friend, online: false }
+                                : friend
+                        ));
+                        break;
+
+                    case 'typing':
+                        break;
+
+                    case 'friend_request_received':
+                        addToast(`Friend request from ${data.from_user}`, 'info');
+                        loadFriendRequests();
+                        break;
+
+                    case 'quantum_key_ready':
+                        setQuantumKey({
+                            key: data.key,
+                            qber: data.qber,
+                            status: data.status
+                        });
+                        if (data.status === 'ATTACK_DETECTED') {
+                            addToast('⚠ Quantum disturbance detected!', 'error');
+                        } else {
+                            addToast('Quantum key established', 'success');
+                        }
+                        break;
+
+                    case 'security_alert':
+                        addToast(data.message, 'error');
+                        break;
+
+                    case 'pong':
+                        break;
+
+                    default:
+                        console.log('Unhandled WebSocket message:', data);
+                }
+            };
+
+            const loadFriends = async () => {
+                if (!currentUser) return;
+                const data = await getFriends(currentUser);
+                setFriends(data.friends || []);
+            };
+
+            const loadFriendRequests = async () => {
+                if (!currentUser) return;
+                const data = await getFriendRequests(currentUser);
+                setFriendRequests(data.requests || []);
+            };
+
+            useEffect(() => {
+                if (currentUser) {
+                    loadFriends();
+                    loadFriendRequests();
+                }
+            }, [currentUser]);
+
+            useEffect(() => {
+                if (!currentUser) return;
+                const interval = setInterval(() => {
+                    loadFriendRequests();
+                }, 3000);
+                return () => clearInterval(interval);
+            }, [currentUser]);
+
+            useEffect(() => {
+                if (searchQuery.length > 1) {
+                    searchUsers(searchQuery).then(data => {
+                        setSearchResults(data.users || []);
+                    });
+                } else {
+                    setSearchResults([]);
+                }
+            }, [searchQuery]);
+
+            const selectChat = async (friend) => {
+                setSelectedChat(friend.username);
+                const keyData = await generateQuantumKey(currentUser, friend.username);
+                setQuantumKey(keyData);
+                const data = await getMessages(currentUser, friend.username);
+                setMessages(data.messages || []);
+            };
+
+            const sendMessage = () => {
+                const socket = wsRef.current;
+                if (!messageInput.trim() || !selectedChat || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+                const content = messageInput.trim();
+                if (content.length > 1000) {
+                    addToast('Message too long (max 1000 characters)', 'error');
+                    return;
+                }
+
+                const messageData = {
+                    id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    from: currentUser,
+                    to: selectedChat,
+                    content: content,
+                    timestamp: new Date().toISOString()
+                };
+
+                setMessages(prev => [...prev, messageData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
+
+                try {
+                    socket.send(JSON.stringify({
+                        type: 'chat_message',
+                        to_user: selectedChat,
+                        content: content
+                    }));
+                } catch (error) {
+                    console.error('Failed to send message:', error);
+                    addToast('Failed to send message', 'error');
+                    setMessages(prev => prev.filter(m => m.id !== messageData.id));
+                }
+
+                setMessageInput('');
+            };
+
+            const handleSendFriendRequest = async (username) => {
+                try {
+                    await sendFriendRequest(currentUser, username);
+                    addToast('Friend request sent', 'success');
+                    setShowSearch(false);
+                    setSearchQuery('');
+                } catch (err) {
+                    addToast('Failed to send request', 'error');
+                }
+            };
+
+            const handleAcceptRequest = async (requestId) => {
+                try {
+                    await acceptFriendRequest(requestId, currentUser);
+                    addToast('Friend request accepted', 'success');
+                    loadFriendRequests();
+                    loadFriends();
+                } catch (err) {
+                    addToast('Failed to accept request', 'error');
+                }
+            };
+
+            const handleRejectRequest = async (requestId) => {
+                try {
+                    await rejectFriendRequest(requestId, currentUser);
+                    loadFriendRequests();
+                } catch (err) {
+                    addToast('Failed to reject request', 'error');
+                }
+            };
+
+            const refreshQuantumKey = async () => {
+                if (!selectedChat) return;
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                        type: 'quantum_key_request',
+                        to_user: selectedChat
+                    }));
+                    addToast('Refreshing quantum key...', 'info');
+                }
+            };
+
+            if (!currentUser) {
+                return <AuthPage onLogin={setCurrentUser} />;
+            }
+
+            return (
+                <div className="h-screen flex">
+                    {toasts.map(toast => (
+                        <Toast
+                            key={toast.id}
+                            message={toast.message}
+                            type={toast.type}
+                            onClose={() => removeToast(toast.id)}
+                        />
+                    ))}
+
+                    <div className="w-80 bg-slate-950 flex flex-col border-r border-slate-800">
+                        <div className="p-4 border-b border-slate-800">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                                        {currentUser[0].toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h2 className="font-semibold text-white">{currentUser}</h2>
+                                        <p className="text-xs text-gray-400">Online</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowSearch(true)}
+                                    className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                                    title="Add Friend"
+                                >
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex border-b border-slate-800">
+                            <button
+                                onClick={() => setView('chat')}
+                                className={`flex-1 py-3 text-sm font-medium ${view === 'chat' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
+                            >
+                                Chats
+                            </button>
+                            <button
+                                onClick={() => setView('friends')}
+                                className={`flex-1 py-3 text-sm font-medium ${view === 'friends' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
+                            >
+                                Friends
+                            </button>
+                            <button
+                                onClick={() => setView('requests')}
+                                className={`flex-1 py-3 text-sm font-medium relative ${view === 'requests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400'}`}
+                            >
+                                Requests
+                                {friendRequests.length > 0 && (
+                                    <span className="absolute top-2 right-4 w-2 h-2 bg-red-500 rounded-full"></span>
+                                )}
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto scrollbar-thin">
+                            {view === 'chat' && (
+                                <div>
+                                    {friends.length === 0 ? (
+                                        <div className="p-4 text-center text-gray-400">
+                                            <p>No friends yet</p>
+                                            <p className="text-sm mt-2">Add friends to start chatting</p>
+                                        </div>
+                                    ) : (
+                                        friends.map(friend => (
+                                            <div
+                                                key={friend.username}
+                                                onClick={() => selectChat(friend)}
+                                                className={`p-4 cursor-pointer hover:bg-slate-800 transition-colors ${selectedChat === friend.username ? 'bg-slate-800 border-l-2 border-blue-500' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <div className="w-12 h-12 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 font-semibold">
+                                                            {friend.username[0].toUpperCase()}
+                                                        </div>
+                                                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 ${friend.online ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h3 className="font-medium text-white">{friend.username}</h3>
+                                                        <p className="text-xs text-gray-400">{friend.online ? 'Online' : 'Offline'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {view === 'friends' && (
+                                <div>
+                                    {friends.map(friend => (
+                                        <div key={friend.username} className="p-4 border-b border-slate-800">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 font-semibold">
+                                                    {friend.username[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-medium text-white">{friend.username}</h3>
+                                                    <p className="text-xs text-gray-400">{friend.online ? 'Online' : 'Offline'}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => selectChat(friend)}
+                                                    className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30"
+                                                >
+                                                    Chat
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {view === 'requests' && (
+                                <div>
+                                    {friendRequests.length === 0 ? (
+                                        <div className="p-4 text-center text-gray-400">
+                                            <p>No pending requests</p>
+                                        </div>
+                                    ) : (
+                                        friendRequests.map(req => (
+                                            <div key={req.id} className="p-4 border-b border-slate-800">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-yellow-500/30 flex items-center justify-center text-yellow-400 font-semibold">
+                                                        {req.from_user[0].toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h3 className="font-medium text-white">{req.from_user}</h3>
+                                                        <p className="text-xs text-gray-400">Wants to connect</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 mt-3">
+                                                    <button
+                                                        onClick={() => handleAcceptRequest(req.id)}
+                                                        className="flex-1 py-2 bg-green-500/20 text-green-400 rounded text-sm hover:bg-green-500/30"
+                                                    >
+                                                        Accept
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRejectRequest(req.id)}
+                                                        className="flex-1 py-2 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col bg-slate-900">
+                        {selectedChat ? (
+                            <>
+                                <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800 bg-slate-950">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center text-purple-400 font-semibold">
+                                            {selectedChat[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-white">{selectedChat}</h3>
+                                            <p className="text-xs text-green-400">Quantum-secured session</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={refreshQuantumKey}
+                                        className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                                        title="Refresh Quantum Key"
+                                    >
+                                        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+                                    {messages.map(msg => (
+                                        <div
+                                            key={msg.id}
+                                            className={`max-w-[70%] p-3 rounded-lg ${msg.from === currentUser ? 'bg-blue-500 text-white ml-auto' : 'bg-slate-800 text-gray-200 mr-auto'}`}
+                                        >
+                                            <p>{msg.content}</p>
+                                            <p className={`text-xs mt-1 ${msg.from === currentUser ? 'text-blue-200' : 'text-gray-400'}`}>
+                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {quantumKey && (
+                                    <div className={`px-4 py-2 border-t border-slate-800 flex items-center gap-4 text-xs ${quantumKey.status === 'ATTACK_DETECTED' ? 'bg-red-500/20' : 'bg-slate-800'}`}>
+                                        <span className="text-purple-400">🔐 {quantumKey.status}</span>
+                                        <span className="text-gray-400">QBER: {quantumKey.qber}%</span>
+                                        <span className="text-gray-400">Six-State</span>
+                                    </div>
+                                )}
+
+                                <div className="p-4 border-t border-slate-800 bg-slate-950">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            value={messageInput}
+                                            onChange={(e) => setMessageInput(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                                            placeholder="Type a message..."
+                                            className="flex-1 px-4 py-3 bg-slate-800 text-gray-200 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        />
+                                        <button
+                                            onClick={sendMessage}
+                                            className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-gray-400">
+                                <div className="text-center">
+                                    <svg className="w-16 h-16 mx-auto mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                    </svg>
+                                    <p>Select a conversation to start messaging</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {showSearch && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                            <div className="bg-slate-900 rounded-lg p-6 w-full max-w-md mx-4 border border-slate-700">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-white">Add Friend</h3>
+                                    <button onClick={() => setShowSearch(false)} className="text-gray-400 hover:text-white">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search users..."
+                                    className="w-full px-4 py-3 bg-slate-800 text-gray-200 placeholder-gray-500 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
+                                    autoFocus
+                                />
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {searchResults.map(user => (
+                                        <div key={user.username} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-blue-500/30 flex items-center justify-center text-blue-400 text-sm">
+                                                    {user.username[0].toUpperCase()}
+                                                </div>
+                                                <span className="text-gray-200">{user.username}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleSendFriendRequest(user.username)}
+                                                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {searchQuery && searchResults.length === 0 && (
+                                        <p className="text-center text-gray-400 py-4">No users found</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
